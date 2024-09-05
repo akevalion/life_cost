@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  postgresDb:
+    image: postgres:13.0
+    restart: always
+    shm_size: 128mb
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: 123
+      POSTGRES_HOST: localhost
+      POSTGRES_DBL: life_db
+    ports:
+      - 5432:5432

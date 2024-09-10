@@ -1,0 +1,43 @@
+body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center; /* Centra horizontalmente */
+    align-items: center;     /* Centra verticalmente */
+    background-color: #000000;
+}
+
+.welcome {
+    font-size: 24px;
+    color: #333;
+}
+
+table {
+    color: whitesmoke;
+    width: 50%;
+    margin: 20px auto;
+    border-collapse: collapse;
+    border: 1px solid rgb(255, 255, 255);
+    table-layout: fixed;
+}
+
+td, th {
+    border: 1px solid rgb(255, 255, 255);
+    padding: 10px;
+    text-align: center;
+    width: 33%;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.icon-button {
+    cursor: pointer;
+    margin: 0 5px;
+}
+
+.placeholder {
+    color: #4d4d4d;
+}
+.error {
+    outline: 2px solid red !important; /* Usa outline en lugar de border */
+}

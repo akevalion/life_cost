@@ -1,4 +1,4 @@
-from flask import Flask, render_template, url_for, request, redirect, jsonify
+from flask import Flask, render_template, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect
 from datetime import datetime
@@ -24,7 +24,7 @@ class Tag(db.Model):
 
 class MoneyTransfer(db.Model):
     id = db.Column(db.Integer, primary_key = True)
-    amount = db.Colum(db.Float, nullable = False)
+    amount = db.Column(db.Float, nullable = False)
     description = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     modifed_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -122,10 +122,31 @@ def add_money():
     new_money_transfer = MoneyTransfer(
         amount=data["amount"],
         description=data["description"],
-        user_id=data["user_id"],
-        created_at=data["created_at"],
-        modifed_at=data["modifed_at"])
+        user_id=data["user_id"])
     return add_data(new_money_transfer, 'MoneyTransfer')
+
+@app.route("/last_money_transfers/<int:limit>", methods=['GET'])
+def last_money_transfers(limit):
+    if limit < 10:
+        limit = 10
+    last_transfers = (
+        db.session.query(MoneyTransfer)
+        .order_by(MoneyTransfer.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    transfers_json = [
+        {
+            'id': transfer.id,
+            'description': transfer.description,
+            'amount': transfer.amount,
+            'created_at': transfer.created_at.isoformat(),
+            'modifed_at': transfer.created_at.isoformat()
+        }
+        for transfer in last_transfers
+    ]
+    return jsonify(transfers_json)
 
 @app.route("/remove_money/<int:id>", methods=['DELETE'])
 def remove_money(id):
@@ -134,7 +155,7 @@ def remove_money(id):
 # ----- USER INTERFACE -----
 @app.route("/")
 def index():
-    return "\"message\": \"Hola mundo loco!!\""
+    return render_template("index.html")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(3000), debug = True )

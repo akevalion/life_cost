@@ -1,6 +1,6 @@
 from flask import Flask, render_template, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect
+from sqlalchemy import inspect, extract
 from datetime import datetime
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://admin:123@localhost/life_db'
@@ -19,8 +19,12 @@ class Category(db.Model):
 
 class Tag(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    category_id = db.Column(db.Integer)
-    money_transfer_id = db.Column(db.Integer)
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
+    money_transfer_id = db.Column(db.Integer, db.ForeignKey('money_transfer.id'))
+    
+    category = db.relationship('Category', backref=db.backref('tags', lazy=True))
+    money_transfer = db.relationship('MoneyTransfer', backref=db.backref('tags', lazy=True))
+
 
 class MoneyTransfer(db.Model):
     id = db.Column(db.Integer, primary_key = True)
@@ -123,11 +127,24 @@ def add_money():
         amount=data["amount"],
         description=data["description"],
         user_id=data["user_id"])
-    return add_data(new_money_transfer, 'MoneyTransfer')
+    result = add_data(new_money_transfer, 'MoneyTransfer')
+    for tag_name in data["tags"]:
+        category = Category.query.filter_by(name=tag_name).first()
+        
+        if not category:
+            category = Category(name=tag_name, category_parent=None, number_of_operation=0)
+            db.session.add(category)
+            db.session.commit()
+
+        new_tag = Tag(category_id=category.id, money_transfer_id=new_money_transfer.id)
+        db.session.add(new_tag)
+
+    db.session.commit()
+    return result
 
 @app.route("/last_money_transfers/<int:limit>", methods=['GET'])
 def last_money_transfers(limit):
-    if limit < 10:
+    if limit < 0:
         limit = 10
     last_transfers = (
         db.session.query(MoneyTransfer)
@@ -136,23 +153,67 @@ def last_money_transfers(limit):
         .all()
     )
 
-    transfers_json = [
-        {
+    transfers_json = []
+    for transfer in last_transfers:
+        tags = [
+            {
+                'id': tag.category.id,
+                'name': tag.category.name
+            }
+            for tag in transfer.tags
+        ]
+        transfer_json = {
             'id': transfer.id,
             'description': transfer.description,
             'amount': transfer.amount,
             'created_at': transfer.created_at.isoformat(),
-            'modifed_at': transfer.created_at.isoformat()
+            'modifed_at': transfer.created_at.isoformat(),
+            'tags': tags
         }
-        for transfer in last_transfers
-    ]
+
+        transfers_json.append(transfer_json)
+
     return jsonify(transfers_json)
 
 @app.route("/remove_money/<int:id>", methods=['DELETE'])
 def remove_money(id):
     money_to_delete = MoneyTransfer.query.get_or_404(id)
     return remove_data(money_to_delete, "MoneyTransfer")
+
+@app.route("/money_transfers/<int:year>/<int:month>", methods=['GET'])
+def money_transfers_by_month(year, month):
+    transfers = (
+        db.session.query(
+            db.func.date_trunc('day', MoneyTransfer.created_at).label('day'),
+            db.func.sum(MoneyTransfer.amount).label('total_amount')
+        )
+        .filter(db.extract('year', MoneyTransfer.created_at) == year)
+        .filter(db.extract('month', MoneyTransfer.created_at) == month)
+        .group_by(db.func.date_trunc('day', MoneyTransfer.created_at))
+        .all()
+    )
+
+    days = [
+        {
+            'day': transfer.day.date().day,  # Extraer el día del mes
+            'total_amount': transfer.total_amount
+        }
+        for transfer in transfers
+    ]
+    total_amount_for_month = sum(transfer['total_amount'] for transfer in days)
+
+    result = {
+        'month': month,
+        'year': year,
+        'total_amount': total_amount_for_month,
+        'days': days
+    }
+    return jsonify(result)
 # ----- USER INTERFACE -----
+
+with app.app_context():
+    db.create_all()
+
 @app.route("/")
 def index():
     return render_template("index.html")

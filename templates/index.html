@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +11,33 @@
     <link rel="icon" href="{{ url_for('static', filename='icon.png') }}" type="image/png">
     <title>Gastos Familia Mamani Flores</title>
 </head>
+
 <body>
-    <div class="welcome">Cargando contenido...</div>    
+    <div class="calendar-header">
+        <div class="calendar-controls">
+            <button id="prevMonth"><i class="fas fa-chevron-left"></i>Prev</button>
+            <h2 id="monthYear"></h2>
+            <button id="nextMonth">Next<i class="fas fa-chevron-right"></i></button>
+        </div>
+    </div>
+    <div>
+        <table class="calendar-table">
+            <thead>
+                <tr>
+                    <th>Sun</th>
+                    <th>Mon</th>
+                    <th>Tue</th>
+                    <th>Wed</th>
+                    <th>Thu</th>
+                    <th>Fri</th>
+                    <th>Sat</th>
+                </tr>
+            </thead>
+            <tbody id="calendarBody"></tbody>
+        </table>
+    </div>
+    <div class="welcome">Cargando contenido...</div>
+    <div class="last10"></div>
 </body>
+
 </html>

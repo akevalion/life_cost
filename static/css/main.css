@@ -1,9 +1,8 @@
 body {
     margin: 0;
     height: 100vh;
-    display: flex;
-    justify-content: center; /* Centra horizontalmente */
-    align-items: center;     /* Centra verticalmente */
+    justify-content: center;
+    align-items: center;
     background-color: #000000;
 }
 
@@ -14,13 +13,15 @@ body {
 
 table {
     color: whitesmoke;
-    width: 50%;
+    width: 60%;
     margin: 20px auto;
     border-collapse: collapse;
-    border: 1px solid rgb(255, 255, 255);
+    
     table-layout: fixed;
 }
-
+.calendar-table{
+    border: none;
+}
 td, th {
     border: 1px solid rgb(255, 255, 255);
     padding: 10px;
@@ -28,6 +29,15 @@ td, th {
     width: 33%;
     overflow: hidden;
     white-space: nowrap;
+}
+.calendar-table th, .calendar-table td{
+    border: none;
+    
+}
+
+.calendar-table td:hover{
+    cursor: pointer;
+    background-color: #34617915;
 }
 
 .icon-button {
@@ -40,4 +50,61 @@ td, th {
 }
 .error {
     outline: 2px solid red !important; /* Usa outline en lugar de border */
+}
+
+.calendar-controls {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+#monthYear{
+    color: white;
+}
+
+.today {
+    background-color: blue;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto;
+}
+.money{
+    color: lightgreen;
+    font-size: small;
+    text-align: center;
+}
+
+.cell-tags {
+    gap: 5px;
+}
+
+.cell-tags span {
+    display: inline-block;
+    background-color: #ADD8E6;
+    color: #333;
+    padding: 2px 5px;
+    border-radius: 20px;
+    font-size: smaller;
+    margin: 0 2px;
+    white-space: nowrap;
+}
+
+.cell-tags span:hover {
+    background-color: #87CEFA;
+    cursor: pointer;
+}
+
+td:last-child, th:last-child {
+    border: none;
+}
+
+.icon-button {
+    visibility: hidden;
+}
+
+tr:hover .icon-button {
+    visibility: visible;
 }

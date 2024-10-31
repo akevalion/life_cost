@@ -1,17 +1,21 @@
 function isInvalidDescription(desc) {
     return desc === '' || desc === 'Descripción';
 }
+
 function isInvalidValue(value) {
-    try {
-        result = parseFloat(value);
-        if (isNaN(result))
-            return true;
-    } catch (e) {
+    if (value === '' || value === 'Valor')
         return true;
-    }
-    return value === '' || value === 'Valor'
+    if (value.includes(','))
+        return true;
+
+    const result = parseFloat(value);
+    return isNaN(result);
 }
-function evaluateFields(row, tbody) {
+function isInvalidTags(tags) {
+    if (tags === '' || tags === 'Tags')
+        return true;
+}
+function evaluateFields(row, tbody, transferId) {
     let descCell = row.find('td').eq(0);
     let valueCell = row.find('td').eq(1);
     let tagCell = row.find('td').eq(2);
@@ -30,26 +34,37 @@ function evaluateFields(row, tbody) {
         hasError = true;
     }
 
+    if (isInvalidTags(tags)) {
+        highlightError(tagCell);
+        hasError = true;
+    }
+
     if (!hasError) {
-        sendMoneyTransfer(desc, value, tags, tbody);
+        if (isAuthenticated)
+            sendMoneyTransfer(desc, value, tags, transferId, tbody);
+        else
+            alert("Login first!");
     }
 }
 
-function sendMoneyTransfer(desc, value, tags, tbody) {
+function sendMoneyTransfer(desc, value, tags, transferId, tbody) {
     let data = {
-        user_id: 1,
         description: desc,
         amount: value,
-        tags: tags.split(",").map(item => item.trim()).filter(item => item)
+        tags: tags.split(",").map(item => item.trim()).filter(item => item),
+        created_at: currentDate.toISOString()
     };
+    if(transferId)
+        data.id = transferId;
+    
     $.ajax({
-        url: 'http://localhost:5000/add_money',
+        url: transferId? '/edit_money':'/add_money',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(data),
         success: function (response) {
             load10Values(tbody);
-            generateCalendar(currentDate);
+            generateCalendar(tbody, currentDate);
         },
         error: function (jqXHR, textStatus, errorThrown) {
             console.error('Error en la petición:', textStatus, errorThrown);
@@ -68,74 +83,58 @@ function highlightError(cell) {
             clearInterval(blink);
             cell.removeClass('error');
         }
-        cell[0].offsetHeight; // Forzar el redibujado del DOM
+        cell[0].offsetHeight;
     }, interval);
 }
-function addEditableRow(tbody) {
-    let editableRow = $('<tr>');
-    editableRow.append('<td contenteditable="true" class="placeholder">Descripción</td>');
-    editableRow.append('<td contenteditable="true" class="placeholder">Valor</td>');
-    editableRow.append('<td contenteditable="true" class="placeholder">Tags</td>');
-    editableRow.append('<td></td>');
-    tbody.append(editableRow);
 
-    $('td[contenteditable="true"]').focus(function () {
-        if ($(this).hasClass('placeholder')) {
-            $(this).removeClass('placeholder').text('');
-        }
-    }).blur(function () {
+function addEditableRow(tbody, transfer) {
+    if (!transfer) {
+        transfer = { description: '', amount: '', tagString: '' };
+    } else {
+        transfer.tagString = transfer.tags.map(each => each.name).join(', ');
+    }
+
+    let editableRow = $('<tr>');
+    editableRow.append(`<td contenteditable="true" data-placeholder="Descripción">${transfer.description || ''}</td>`);
+    editableRow.append(`<td contenteditable="true" data-placeholder="Valor">${transfer.amount || ''}</td>`);
+    editableRow.append(`<td contenteditable="true" data-placeholder="Tags">${transfer.tagString || ''}</td>`);
+    editableRow.append('<td></td>');
+    
+    tbody.append(editableRow);
+    for (let k =0; k < 3; k++){
+        let td = editableRow.find('td').eq(k);
+        if(td.text().trim() === '')
+            td.addClass('placeholder').text(td.data('placeholder'));
+    }
+    editableRow.find('td[contenteditable="true"]').on('focus', function () {
+        if ($(this).text().trim() === $(this).data('placeholder'))
+            $(this).text('').removeClass('placeholder');
+    }).on('blur', function () {
         if ($(this).text().trim() === '') {
-            const defaultTexts = ['Descripción', 'Valor', 'Tags'];
-            const index = $(this).index();
-            $(this).addClass('placeholder').text(defaultTexts[index]);
+            const placeholderText = $(this).data('placeholder');
+            $(this).addClass('placeholder').text(placeholderText);
         }
-    });
-    $('td[contenteditable="true"]').keydown(function (event) {
+    }).on('keydown', function (event) {
         if (event.key === 'Enter') {
             event.preventDefault();
-            evaluateFields(editableRow, tbody);
+            evaluateFields(editableRow, tbody, transfer.id);
         }
     });
 
-    $('td[contenteditable="true"]').first().focus();
+    setTimeout(() => {
+        editableRow.find('td[contenteditable="true"]').first().focus();
+    }, 100);
+
+    return editableRow;
 }
-function load10Values(tbody) {
+
+function callAjax(path, callback){
     $.ajax({
-        url: 'http://localhost:5000/last_money_transfers/5',
+        url: path,
         type: 'GET',
         contentType: 'application/json',
-        success: function (response) {
-            tbody.empty();
-            response.reverse();
-            response.forEach(function (transfer) {
-                let row = $('<tr>');
-                row.append(`<td>${transfer.description}</td>`);
-                row.append(`<td>${transfer.amount}</td>`);
-                let tags = $('<td>');
-                tags.addClass('cell-tags');
-                transfer.tags.forEach(each=>{
-                    let tag = $('<span>');
-                    tag.text(each.name);
-                    tags.append(tag);
-                });
-                let actionsCell = $('<td>');
-                let editBtn = $('<i class="fas fa-edit icon-button" title="Editar"></i>');
-                let deleteBtn = $('<i class="fas fa-trash icon-button" title="Borrar"></i>');
-
-                editBtn.click(function () {
-                    let row = $(this).closest('tr');
-                    row.find('td').attr('contenteditable', 'true').focus();
-                });
-
-                deleteBtn.click(function () {
-                    $(this).closest('tr').remove();
-                });
-
-                actionsCell.append(editBtn).append(deleteBtn);
-                row.append(tags).append(actionsCell);
-                tbody.append(row);
-            });
-            addEditableRow(tbody);
+        success: function (response){
+            callback(response);
         },
         error: function (jqXHR, textStatus, errorThrown) {
             console.error('Error en la petición:', textStatus, errorThrown);
@@ -143,36 +142,130 @@ function load10Values(tbody) {
     });
 }
 
+function printNumber(aNumber){
+    return Number.isInteger(aNumber) ? aNumber : aNumber.toFixed(2);
+}
+
+function loadValues(response, tbody){
+    tbody.empty();
+    response.reverse();
+    let total = 0;
+    response.forEach(function (transfer) {
+        total += transfer.amount;
+        let row = $('<tr>');
+        row.append(`<td>${transfer.description}</td>`);
+        row.append(`<td>${printNumber(transfer.amount)}</td>`);
+        let tags = $('<td>');
+        tags.addClass('cell-tags');
+        transfer.tags.forEach(each => {
+            let tag = $('<span>');
+            tag.text(each.name);
+            tag.click(function(){
+                loadTagValues(tbody, each);
+            });
+            tags.append(tag);
+        });
+        let actionsCell = $('<td class="actions">');
+        let editBtn = $('<i class="fas fa-edit icon-button" title="Editar"></i>');
+        let deleteBtn = $('<i class="fas fa-trash icon-button" title="Borrar"></i>');
+
+        editBtn.click(function () {
+            if (!isAuthenticated) {
+                alert("Login first!");
+                return;
+            }
+            let row = $(this).closest('tr');
+            let editableRow = addEditableRow(tbody, transfer);
+            row.after(editableRow);
+            row.remove();
+        });
+
+        deleteBtn.click(function () {
+            if (!isAuthenticated) {
+                alert("Login first!");
+                return;
+            }
+            $.ajax({
+                url: `/remove_money/${transfer.id}`,
+                type: 'DELETE',
+                success: function (response) {
+                    load10Values(tbody);
+                    generateCalendar(tbody, currentDate);
+                    row.remove();
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    console.error('Error en la eliminación:', textStatus, errorThrown);
+                }
+            });
+        });
+
+        actionsCell.append(editBtn).append(deleteBtn);
+        row.append(tags).append(actionsCell);
+        tbody.append(row);
+    });
+    addEditableRow(tbody);
+    $("#logger").html("Total: "+printNumber(total));
+}
+
+function loadTagValues(tbody, tag){
+    callAjax('/money_transfers_by_category/'+tag.id, function (response){
+        loadValues(response, tbody);
+    });
+}
+
+function load10Values(tbody) {
+    callAjax('/last_money_transfers/5', function(response){
+        loadValues(response, tbody);
+    });
+}
+
+function loadMoneyTransferFrom(tbody, date){
+    currentDate = date;
+    let startDate = date.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+    let endDate = new Date(date);
+    endDate.setDate(endDate.getDate() + 1); // Fecha fin es el día siguiente
+    endDate = endDate.toISOString().split('T')[0];
+    console.log("Original "+date+" start "+startDate);
+    callAjax('/money_transfer_from/'+startDate+"/to/"+endDate, function(response){
+        loadValues(response, tbody);
+    });
+}
+
 function showTable() {
     let table = $('<table>');
-    let thead = $('<thead>').append('<tr><th>Descripción</th><th>Valor</th><th>Tags</th><th></th></tr>');
+    let thead = $('<thead>').append('<tr><th>Descripción</th><th>Valor</th><th>Tags</th><th class="actions"></th></tr>');
     let tbody = $('<tbody>');
 
     load10Values(tbody);
     table.append(thead).append(tbody);
     $('.last10').html(table);
+    return tbody;
 }
 
 let currentDate = new Date();
-function loadMonthValues(date){
-    const month = date.getMonth()+1;
-    const year = date.getFullYear();
+function loadMonthValues(date) {
+    const month = date.getUTCMonth() + 1;
+    const year = date.getUTCFullYear();
+    const data = {
+        'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone
+    };
     $.ajax({
-        url: 'http://localhost:5000/money_transfers/'+year+'/'+month,
-        type: 'GET',
+        url: '/money_transfers/' + year + '/' + month,
+        type: 'POST',
+        data: JSON.stringify(data),
         contentType: 'application/json',
         success: function (result) {
-            if(currentDate.getMonth()+1 == result.month && currentDate.getFullYear() == result.year){
-                if(result.total_amount != 0){
+            if (currentDate.getUTCMonth() + 1 == result.month && currentDate.getUTCFullYear() == result.year) {
+                if (result.total_amount != 0) {
                     const monthYear = $('#monthYear');
                     const bottomMessageMonth = $('<div></div>');
-                    bottomMessageMonth.text(result.total_amount).addClass('money');
+                    bottomMessageMonth.text(printNumber(result.total_amount)).addClass('money');
                     monthYear.append(bottomMessageMonth);
                 }
-                result.days.forEach(each=>{
-                    const cell = $("#"+each.day);
-                    const bottomMessage= $('<div></div>');
-                    bottomMessage.text(each.total_amount).addClass('money');
+                result.days.forEach(each => {
+                    const cell = $("#" + each.day);
+                    const bottomMessage = $('<div></div>');
+                    bottomMessage.text(printNumber(each.total_amount)).addClass('money');
                     cell.append(bottomMessage);
                 });
             }
@@ -183,7 +276,7 @@ function loadMonthValues(date){
     });
 }
 
-function generateCalendar(date) {
+function generateCalendar(tbody, date) {
     const today = new Date();
     const currentDay = today.getDate();
     const currentMonth = today.getMonth();
@@ -205,14 +298,18 @@ function generateCalendar(date) {
         const row = $('<tr></tr>');
         for (let j = 0; j < 7; j++) {
             const cell = $('<td></td>');
-            
             if (i === 0 && j < firstDayIndex) {
                 row.append(cell);
             } else if (dateCount > daysInMonth) {
                 row.append(cell);
             } else {
-                cell.html('<div>'+dateCount+'</div>');
+                cell.html('<div>' + dateCount + '</div>');
                 cell.attr('id', dateCount);
+                cell.click(function(){
+                    let cellDate = new Date(date);
+                    cellDate.setDate($(this).attr('id'));
+                    loadMoneyTransferFrom(tbody, cellDate);
+                });
                 if (dateCount === currentDay && month === currentMonth && year === currentYear)
                     cell.addClass('today');
                 row.append(cell);
@@ -223,17 +320,35 @@ function generateCalendar(date) {
     }
 }
 
+function addEventsToWalletBox(){
+    $('#groupSelector').change(function() {
+        let selectedGroupId = $(this).val();
+        $.ajax({
+            url: '/update_last_visited_wallet',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ wallet_id: selectedGroupId }),
+            success: function(response) {
+                location.reload();
+            },
+            error: function(xhr, status, error) {
+                console.error('Error updating group:', error);
+            }
+        });
+    });
+}
 $(function () {
     $(".welcome").hide();
-    showTable();
-    generateCalendar(currentDate);
+    let tbody = showTable();
+    generateCalendar(tbody, currentDate);
+    addEventsToWalletBox();
     $('#prevMonth').click(function () {
         currentDate.setMonth(currentDate.getMonth() - 1);
-        generateCalendar(currentDate);
+        generateCalendar(tbody, currentDate);
     });
 
     $('#nextMonth').click(function () {
         currentDate.setMonth(currentDate.getMonth() + 1);
-        generateCalendar(currentDate);
+        generateCalendar(tbody, currentDate);
     });
 });

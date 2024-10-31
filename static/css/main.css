@@ -10,18 +10,26 @@ body {
     font-size: 24px;
     color: #333;
 }
+label {
+    color: white;
+}
 
+#wallet_box{
+    display: inline-block;
+    margin-left: 50px;
+}
 table {
     color: whitesmoke;
     width: 60%;
     margin: 20px auto;
     border-collapse: collapse;
-    
     table-layout: fixed;
 }
 .calendar-table{
     border: none;
 }
+
+
 td, th {
     border: 1px solid rgb(255, 255, 255);
     padding: 10px;
@@ -31,8 +39,11 @@ td, th {
     white-space: nowrap;
 }
 .calendar-table th, .calendar-table td{
-    border: none;
-    
+    border: none;    
+}
+
+.actions{
+    width: 10%;
 }
 
 .calendar-table td:hover{
@@ -48,6 +59,11 @@ td, th {
 .placeholder {
     color: #4d4d4d;
 }
+
+td[contenteditable="true"]:focus {
+    color: white;
+}
+
 .error {
     outline: 2px solid red !important; /* Usa outline en lugar de border */
 }
@@ -107,4 +123,34 @@ td:last-child, th:last-child {
 
 tr:hover .icon-button {
     visibility: visible;
+}
+
+.login{
+    padding: 5px;
+    text-align: center;
+}
+.login span {
+    color: white;
+}
+
+.login img {
+    margin-left: 10px; /* Espaciado a la izquierda de la imagen */
+}
+
+#logger{
+    color: white;
+    text-align: center;
+}
+
+@media (max-width: 600px) {
+    table {
+        width: 90%;
+    }
+    .actions{
+        width: 8%;
+        padding: 1px;
+    }
+    .icon-button{
+        margin: 0 2px;
+    }
 }

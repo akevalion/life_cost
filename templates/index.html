@@ -9,10 +9,33 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="icon" href="{{ url_for('static', filename='icon.png') }}" type="image/png">
-    <title>Gastos Familia Mamani Flores</title>
+    <title>Gastos de la vida</title>
 </head>
 
 <body>
+    <script>
+        let isAuthenticated = {{ is_authenticated|tojson }};
+    </script>
+    
+    <div class="login">
+        {% if user.is_authenticated %}
+        <span>Hello, {{ user.username }}!</span>
+        <img src="{{ user.picture }}" alt="Profile Image" style="width: 30px; height: 30px; border-radius: 50%;">
+        <a href="/logout">Logout</a>
+        <div id="wallet_box">
+            <label for="groupSelector">Select Wallet:</label>
+            <select id="groupSelector">
+                {% for wallet in user.wallets %}
+                <option value="{{ wallet.id }}" {% if wallet.id == user.last_visited_wallet_id %}selected{% endif %}>{{ wallet.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% else %}
+        <span>You are not logged in.</span>
+        <a href="/google_login">Login</a>
+        {% endif %}
+    </div>
+
     <div class="calendar-header">
         <div class="calendar-controls">
             <button id="prevMonth"><i class="fas fa-chevron-left"></i>Prev</button>
@@ -37,6 +60,7 @@
         </table>
     </div>
     <div class="welcome">Cargando contenido...</div>
+    <div id="logger"></div>
     <div class="last10"></div>
 </body>
 

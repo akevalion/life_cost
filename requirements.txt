@@ -1,3 +1,7 @@
 flask
 flask_sqlalchemy
-psycopg2
+python-dotenv
+Flask-Dance
+Flask-Login
+mysqlclient
+python-dateutil

@@ -1,13 +1,42 @@
 version: '3.8'
+
 services:
-  postgresDb:
-    image: postgres:13.0
-    restart: always
-    shm_size: 128mb
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_container
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: 123
-      POSTGRES_HOST: localhost
-      POSTGRES_DBL: life_db
+      MYSQL_ROOT_PASSWORD: Spigit123!
+      MYSQL_DATABASE: life_db
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: 123
+    volumes:
+      - mysql_data:/var/lib/mysql
     ports:
-      - 5432:5432
+      - "3306:3306"
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    environment:
+      PMA_HOST: mysql_container
+      MYSQL_ROOT_PASSWORD: Spigit123!
+    ports:
+      - "8080:80"
+    depends_on:
+      - mysql
+
+  app:
+    image: akevalion/life:0.0.9.Release
+    container_name: life_app
+    environment:
+      DATABASE_URL: "mysql://admin:123@192.168.1.41/life_db"
+      GOOGLE_CLIENT_ID: "41616688711-9tm06s82c7c8de1hpgt3u204qetq449a.apps.googleusercontent.com"
+      GOOGLE_CLIENT_SECRET: "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"
+    depends_on:
+      - mysql
+    ports:
+      - "5000:3000"
+
+volumes:
+  mysql_data:
+

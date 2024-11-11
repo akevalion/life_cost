@@ -1,8 +1,10 @@
 import os
 from flask import Flask, render_template, jsonify, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect, extract
-from datetime import datetime
+from sqlalchemy import inspect, desc
+from datetime import datetime, timedelta
+import pytz
+from calendar import monthrange
 from dotenv import load_dotenv
 from flask_dance.contrib.google import make_google_blueprint, google
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
@@ -109,11 +111,6 @@ def add_wallet():
 def user(id):
     return to_json(User.query.get_or_404(id))
 
-@app.route("/remove_user/<int:id>", methods=['DELETE'])
-def remove_user(id):
-    user_to_delete = User.query.get_or_404(id)
-    return remove_data(user_to_delete, 'User')
-
 # ----- END POINTS CATEGORIES -----
 @app.route("/category/<int:id>", methods=['GET'])
 def category(id):
@@ -127,11 +124,6 @@ def add_category():
         category_parent = data["category_parent"],
         number_of_operation = data["number_of_operation"])
     return add_data(new_category, 'Category')
-
-@app.route("/remove_category/<int:id>", methods=['DELETE'])
-def remove_category(id):
-    category_to_delete = Category.query.get_or_404(id)
-    return remove_data(category_to_delete, "Category")
 
 # ----- END POINTS TAGS -----
 @app.route("/tag/<int:id>", methods=['GET'])
@@ -194,11 +186,11 @@ def add_money():
     created_at = data.get("created_at")
     if created_at:
         try:
-            created_at = parser.parse(created_at)  # Parsear la fecha desde el string ISO8601
+            created_at = parser.parse(created_at) 
         except ValueError:
-            created_at = datetime.utcnow()  # Si falla el parseo, usar la fecha actual
+            created_at = datetime.utcnow() 
     else:
-        created_at = datetime.utcnow()  # Usar la fecha actual si no se proporciona
+        created_at = datetime.utcnow()
     
     new_money_transfer = MoneyTransfer(
         amount=data["amount"],
@@ -223,6 +215,7 @@ def add_money():
 
 def collect_tags_from(transfers):
     transfers_json = []
+    user_names = {}
     for transfer in transfers:
         tags = [
             {
@@ -231,13 +224,17 @@ def collect_tags_from(transfers):
             }
             for tag in transfer.tags
         ]
+        user_id = transfer.user_id
+        if not (user_id in user_names):
+            user_names[user_id] = db.session.query(User.username).filter_by(id=user_id).scalar()
         transfer_json = {
             'id': transfer.id,
             'description': transfer.description,
             'amount': transfer.amount,
             'created_at': transfer.created_at.isoformat(),
-            'modifed_at': transfer.created_at.isoformat(),
-            'tags': tags
+            'modifed_at': transfer.modifed_at.isoformat(),
+            'tags': tags,
+            'created_by': user_names[user_id]
         }
 
         transfers_json.append(transfer_json)
@@ -287,43 +284,74 @@ def remove_money(id):
     Tag.query.filter_by(money_transfer_id=money_to_delete.id).delete()
     return remove_data(money_to_delete, "MoneyTransfer")
 
-@app.route("/money_transfer_from/<string:start_date>/to/<string:end_date>")
+def get_date(date):
+    return datetime.fromisoformat(date.replace('Z', '+00:00'))
+
+@app.route("/money_transfer_from_date", methods=['POST'])
 @login_required
-def money_transfers_by_date(start_date, end_date):
-    start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
-    end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+def money_transfers_by_date():
+    data = request.get_json()
+    client_time_zone = data.get('timeZone', 'SYSTEM')
+    client_date = get_date(data.get('date'))
+
+    client_tz = pytz.timezone(client_time_zone)
+    
+    if client_date.tzinfo is None:
+        client_date = client_tz.localize(client_date)
+    else:
+        client_date = client_date.astimezone(client_tz)
+    
+    start_date = client_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_date = client_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    start_date_utc = start_date.astimezone(pytz.utc)
+    end_date_utc = end_date.astimezone(pytz.utc)
 
     transfers = MoneyTransfer.query.filter(
-        db.func.date(MoneyTransfer.created_at) >= start_date_obj,
-        db.func.date(MoneyTransfer.created_at) <= end_date_obj,
+        MoneyTransfer.created_at >= start_date_utc,
+        MoneyTransfer.created_at < end_date_utc,
         MoneyTransfer.wallet_id == current_user.last_visited_wallet_id
-    ).all()
+    ).order_by(desc(MoneyTransfer.id)).all()
     return collect_tags_from(transfers)
 
-@app.route("/money_transfers/<int:year>/<int:month>", methods=['POST'])
-def money_transfers_by_month(year, month):
+@app.route("/money_transfers", methods=['POST'])
+@login_required
+def money_transfers_by_month():
     data = request.get_json()
-    client_time_zone = data.get('timeZone', 'SYSTEM') 
-    transfers = (
-        db.session.query(
-            db.func.convert_tz(MoneyTransfer.created_at, '+00:00', client_time_zone).label('local_created_at'),
-            db.func.sum(MoneyTransfer.amount).label('total_amount')
-        )
-        .filter(db.extract('year', MoneyTransfer.created_at) == year)
-        .filter(db.extract('month', MoneyTransfer.created_at) == month)
-        .filter(MoneyTransfer.wallet_id == current_user.last_visited_wallet_id)
-        .group_by(db.func.convert_tz(MoneyTransfer.created_at, '+00:00', client_time_zone))
-        .all()
-    )
+    client_time_zone = data.get('timeZone', 'SYSTEM')
+    client_date = get_date(data.get('date'))
+    client_tz = pytz.timezone(client_time_zone)
 
-    days = [
-        {
-            'day': transfer.local_created_at.day,  # Extraer el día del mes
-            'total_amount': transfer.total_amount
-        }
-        for transfer in transfers
-    ]
-    total_amount_for_month = sum(transfer['total_amount'] for transfer in days)
+    year = client_date.year
+    month = client_date.month
+    days_in_month = monthrange(year, month)[1]
+
+    # Establecemos el rango de fechas en la zona horaria del cliente
+    start_date = client_tz.localize(datetime(year, month, 1, 0, 0, 0))
+    end_date = client_tz.localize(datetime(year, month, days_in_month, 23, 59, 59, 999999))
+
+    # Convertimos el rango de fechas a UTC
+    start_date_utc = start_date.astimezone(pytz.utc)
+    end_date_utc = end_date.astimezone(pytz.utc)
+
+    # Consultamos la base de datos con las fechas en UTC
+    transfers = MoneyTransfer.query.filter(
+        MoneyTransfer.created_at >= start_date_utc,
+        MoneyTransfer.created_at <= end_date_utc,
+        MoneyTransfer.wallet_id == current_user.last_visited_wallet_id
+    ).all()
+
+    # Calculamos los totales diarios en la zona horaria del cliente
+    daily_totals = {}
+    for transfer in transfers:
+        local_date = transfer.created_at.replace(tzinfo=pytz.utc).astimezone(client_tz).date()
+        if local_date not in daily_totals:
+            daily_totals[local_date] = 0
+        daily_totals[local_date] += transfer.amount
+
+    # Formateamos los resultados para la respuesta JSON
+    days = [{'day': day.day, 'total_amount': total} for day, total in daily_totals.items()]
+    total_amount_for_month = sum(daily_totals.values())
 
     result = {
         'month': month,
@@ -414,4 +442,4 @@ def terms():
     return render_template("terms.html")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(3000), debug = True )
+    app.run(host="0.0.0.0", port=int(3000), debug = True)

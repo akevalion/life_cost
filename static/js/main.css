@@ -46,8 +46,12 @@ function evaluateFields(row, tbody, transferId) {
             alert("Login first!");
     }
 }
-
+let isServerFree = true;
 function sendMoneyTransfer(desc, value, tags, transferId, tbody) {
+    if(isServerFree)
+        isServerFree = false;
+    else
+        return;
     let data = {
         description: desc,
         amount: value,
@@ -63,10 +67,16 @@ function sendMoneyTransfer(desc, value, tags, transferId, tbody) {
         contentType: 'application/json',
         data: JSON.stringify(data),
         success: function (response) {
-            load10Values(tbody);
+            isServerFree = true;
+            today = new Date();
+            if (currentDate == today)
+                load10Values(tbody);
+            else
+                loadMoneyTransferFrom(tbody, currentDate);
             generateCalendar(tbody, currentDate);
         },
         error: function (jqXHR, textStatus, errorThrown) {
+            isServerFree = true;
             console.error('Error en la petición:', textStatus, errorThrown);
         }
     });
@@ -146,6 +156,43 @@ function printNumber(aNumber){
     return Number.isInteger(aNumber) ? aNumber : aNumber.toFixed(2);
 }
 
+function formatTimestamp(timestamp) {
+    const date = new Date(timestamp);
+    const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+    const localDate = new Date(date.getTime() - offsetMs);
+
+    const day = String(localDate.getDate()).padStart(2, '0');
+    const month = String(localDate.getMonth() + 1).padStart(2, '0');
+    const year = localDate.getFullYear();
+    const hours = String(localDate.getHours()).padStart(2, '0');
+    const minutes = String(localDate.getMinutes()).padStart(2, '0');
+    const seconds = String(localDate.getSeconds()).padStart(2, '0');
+
+    return `${day}/${month}/${year} ${hours}h${minutes}m${seconds}`;
+}
+
+function openInfo(transfer){
+    $("#info-description").text(transfer.description);
+    addSignColor(transfer.amount, $("#info-amount"));
+    $('#info-tags').empty();
+    generateTags(transfer, $('#info-tags'));
+    $('#info-createdBy').text(transfer.created_by);
+    $('#info-createdAt').text(formatTimestamp(transfer.created_at));
+    $('#info-modifiedAt').text(formatTimestamp(transfer.modifed_at));
+    $("#info").fadeIn();
+}
+
+function generateTags(transfer, container){
+    container.addClass('cell-tags');
+    transfer.tags.forEach(each => {
+        let tag = $('<span>');
+        tag.text(each.name);
+        tag.click(function(){
+            loadTagValues(tbody, each);
+        });
+        container.append(tag);
+    });
+}
 function loadValues(response, tbody){
     tbody.empty();
     response.reverse();
@@ -153,18 +200,18 @@ function loadValues(response, tbody){
     response.forEach(function (transfer) {
         total += transfer.amount;
         let row = $('<tr>');
-        row.append(`<td>${transfer.description}</td>`);
-        row.append(`<td>${printNumber(transfer.amount)}</td>`);
-        let tags = $('<td>');
-        tags.addClass('cell-tags');
-        transfer.tags.forEach(each => {
-            let tag = $('<span>');
-            tag.text(each.name);
-            tag.click(function(){
-                loadTagValues(tbody, each);
-            });
-            tags.append(tag);
+        let descriptionCell = $('<td></td>');
+        descriptionCell.text(transfer.description);
+        descriptionCell.click(function(){
+            openInfo(transfer);
         });
+        row.append(descriptionCell);
+        let amountCell = $('<td></td>');
+        addSignColor(transfer.amount, amountCell);
+        row.append(amountCell);
+        let tags = $('<td></td>');
+        generateTags(transfer, tags);
+        
         let actionsCell = $('<td class="actions">');
         let editBtn = $('<i class="fas fa-edit icon-button" title="Editar"></i>');
         let deleteBtn = $('<i class="fas fa-trash icon-button" title="Borrar"></i>');
@@ -189,7 +236,10 @@ function loadValues(response, tbody){
                 url: `/remove_money/${transfer.id}`,
                 type: 'DELETE',
                 success: function (response) {
-                    load10Values(tbody);
+                    if(lastSelectedDate)
+                        loadMoneyTransferFrom(tbody, lastSelectedDate);
+                    else
+                        load10Values(tbody);
                     generateCalendar(tbody, currentDate);
                     row.remove();
                 },
@@ -204,7 +254,10 @@ function loadValues(response, tbody){
         tbody.append(row);
     });
     addEditableRow(tbody);
-    $("#logger").html("Total: "+printNumber(total));
+    let totalSpan = $('<span></span>');
+    addSignColor(total, totalSpan);
+    $("#logger").html("Total: ").append(totalSpan);
+
 }
 
 function loadTagValues(tbody, tag){
@@ -221,13 +274,21 @@ function load10Values(tbody) {
 
 function loadMoneyTransferFrom(tbody, date){
     currentDate = date;
-    let startDate = date.toISOString().split('T')[0]; // Formato YYYY-MM-DD
-    let endDate = new Date(date);
-    endDate.setDate(endDate.getDate() + 1); // Fecha fin es el día siguiente
-    endDate = endDate.toISOString().split('T')[0];
-    console.log("Original "+date+" start "+startDate);
-    callAjax('/money_transfer_from/'+startDate+"/to/"+endDate, function(response){
-        loadValues(response, tbody);
+    const data = {
+        'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+        'date': date.toISOString()
+    };
+    $.ajax({
+        url: '/money_transfer_from_date',
+        type: 'POST',
+        data: JSON.stringify(data),
+        contentType: 'application/json',
+        success: function (result) {
+            loadValues(result, tbody);
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            console.error('Error en la petición:', textStatus, errorThrown);
+        }
     });
 }
 
@@ -237,20 +298,27 @@ function showTable() {
     let tbody = $('<tbody>');
 
     load10Values(tbody);
+    table.addClass('info-table');
     table.append(thead).append(tbody);
     $('.last10').html(table);
     return tbody;
 }
 
 let currentDate = new Date();
+function addSignColor(amount, element){
+    element
+        .text(printNumber(amount))
+        .addClass('money')
+        .addClass(amount<0?'color-extract':'color-insert');
+}
+
 function loadMonthValues(date) {
-    const month = date.getUTCMonth() + 1;
-    const year = date.getUTCFullYear();
     const data = {
-        'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone
+        'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+        'date': date.toISOString()
     };
     $.ajax({
-        url: '/money_transfers/' + year + '/' + month,
+        url: '/money_transfers',
         type: 'POST',
         data: JSON.stringify(data),
         contentType: 'application/json',
@@ -259,13 +327,13 @@ function loadMonthValues(date) {
                 if (result.total_amount != 0) {
                     const monthYear = $('#monthYear');
                     const bottomMessageMonth = $('<div></div>');
-                    bottomMessageMonth.text(printNumber(result.total_amount)).addClass('money');
+                    addSignColor(result.total_amount, bottomMessageMonth);
                     monthYear.append(bottomMessageMonth);
                 }
                 result.days.forEach(each => {
                     const cell = $("#" + each.day);
                     const bottomMessage = $('<div></div>');
-                    bottomMessage.text(printNumber(each.total_amount)).addClass('money');
+                    addSignColor(each.total_amount, bottomMessage);
                     cell.append(bottomMessage);
                 });
             }
@@ -275,6 +343,8 @@ function loadMonthValues(date) {
         }
     });
 }
+let lastSelectedDate = null;
+let lastSelectedCellDate = null;
 
 function generateCalendar(tbody, date) {
     const today = new Date();
@@ -307,6 +377,12 @@ function generateCalendar(tbody, date) {
                 cell.attr('id', dateCount);
                 cell.click(function(){
                     let cellDate = new Date(date);
+                    if(lastSelectedCellDate){
+                        lastSelectedCellDate.removeClass("selected-cell");
+                    }
+                    lastSelectedDate = cellDate;
+                    lastSelectedCellDate = $(this);
+                    lastSelectedCellDate.addClass("selected-cell");
                     cellDate.setDate($(this).attr('id'));
                     loadMoneyTransferFrom(tbody, cellDate);
                 });
@@ -318,6 +394,8 @@ function generateCalendar(tbody, date) {
         }
         $('#calendarBody').append(row);
     }
+    if(lastSelectedDate)
+        $('#'+lastSelectedDate.getDate()).addClass('selected-cell');
 }
 
 function addEventsToWalletBox(){
@@ -339,16 +417,27 @@ function addEventsToWalletBox(){
 }
 $(function () {
     $(".welcome").hide();
+    debugger;
     let tbody = showTable();
     generateCalendar(tbody, currentDate);
     addEventsToWalletBox();
     $('#prevMonth').click(function () {
+        lastSelectedDate = null;
         currentDate.setMonth(currentDate.getMonth() - 1);
         generateCalendar(tbody, currentDate);
     });
 
     $('#nextMonth').click(function () {
+        lastSelectedDate = null;
         currentDate.setMonth(currentDate.getMonth() + 1);
         generateCalendar(tbody, currentDate);
+    });
+    $('.close').on('click', function() {
+        $('#info').fadeOut();
+    });
+    $(window).on('click', function(event) {
+        if ($(event.target).is('#info')) {
+          $('#info').fadeOut();
+        }
     });
 });

@@ -5,18 +5,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <script src="{{ url_for('static', filename='main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/validation.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ajax.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/date-utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/table.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main2.js') }}"></script>
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="icon" href="{{ url_for('static', filename='icon.png') }}" type="image/png">
+    <link rel="icon" href="{{ url_for('static', filename='img/icon.png') }}" type="image/png">
     <title>Gastos de la vida</title>
 </head>
 
 <body>
     <script>
-        let isAuthenticated = {{ is_authenticated|tojson }};
+        let isAuthenticated = {{ is_authenticated| tojson }};
     </script>
-    
+
     <div class="login">
         {% if user.is_authenticated %}
         <span>Hello, {{ user.username }}!</span>
@@ -26,7 +34,8 @@
             <label for="groupSelector">Select Wallet:</label>
             <select id="groupSelector">
                 {% for wallet in user.wallets %}
-                <option value="{{ wallet.id }}" {% if wallet.id == user.last_visited_wallet_id %}selected{% endif %}>{{ wallet.name }}</option>
+                <option value="{{ wallet.id }}" {% if wallet.id==user.last_visited_wallet_id %}selected{% endif %}>{{
+                    wallet.name }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -62,6 +71,19 @@
     <div class="welcome">Cargando contenido...</div>
     <div id="logger"></div>
     <div class="last10"></div>
+
+    <div id="info" class="info">
+        <div class="info-content">
+            <span class="close">&times;</span>
+            <h3>Detalles de la Transaccion</h3>
+            <p><strong>Descripción:</strong> <span id="info-description"></span></p>
+            <p><strong>Monto:</strong> <span id="info-amount"></span></p>
+            <p><strong>Tags:</strong> <span id="info-tags"></span></p>
+            <p><strong>Creado por:</strong> <span id="info-createdBy"></span></p>
+            <p><strong>Editado por:</strong> <span id="info-modifiedAt"></span></p>
+            <p><strong>Fecha de creación:</strong> <span id="info-createdAt"></span></p>
+        </div>
+    </div>
 </body>
 
 </html>

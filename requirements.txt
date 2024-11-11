@@ -1,4 +1,5 @@
 flask
+pytz
 flask_sqlalchemy
 python-dotenv
 Flask-Dance

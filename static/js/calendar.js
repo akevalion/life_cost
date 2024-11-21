@@ -63,10 +63,13 @@ function loadMonthValues(date) {
         success: function (result) {
             if (currentDate.getUTCMonth() + 1 == result.month && currentDate.getUTCFullYear() == result.year) {
                 if (result.total_amount != 0) {
-                    const monthYear = $('#monthYear');
-                    const bottomMessageMonth = $('<div></div>');
+                    let monthYear = $('#monthYear');
+                    let bottomMessageMonth = $('<div></div>');
                     addSignColor(result.total_amount, bottomMessageMonth);
                     monthYear.append(bottomMessageMonth);
+                    let average = $('<div></div>');
+                    addSignColor(result.mean, average);
+                    $(".average").empty().text('Average per day: ').append(average);
                 }
                 result.days.forEach(each => {
                     const cell = $("#" + each.day);

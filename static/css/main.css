@@ -181,21 +181,6 @@ tr:hover .icon-button {
     text-align: center;
 }
 
-@media (max-width: 600px) {
-    table {
-        width: 95%;
-    }
-
-    .actions {
-        width: 8%;
-        padding: 1px;
-    }
-
-    .icon-button {
-        margin: 0 1px;
-    }
-}
-
 /*Popup*/
 #info {
     display: none;
@@ -231,4 +216,55 @@ tr:hover .icon-button {
     color: #fff;
     text-decoration: none;
     cursor: pointer;
+}
+
+.average {
+    text-align: center;
+    color: white;
+    margin-bottom: 15px;
+}
+
+@media (max-width: 600px) {
+    table {
+        width: 95%;
+    }
+
+    .actions {
+        width: 8%;
+        padding: 1px;
+    }
+
+    .icon-button {
+        margin: 0 1px;
+    }
+}
+
+#chartModal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    background: white;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    padding: 20px;
+    z-index: 1000;
+}
+
+#overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.3 );
+    z-index: 999;
+}
+
+.close-btn {
+    float: right;
+    cursor: pointer;
+    font-size: 20px;
 }

@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template, jsonify, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect, desc
+from sqlalchemy import inspect, desc, func
 from datetime import datetime, timedelta
 import pytz
 from calendar import monthrange
@@ -100,11 +100,22 @@ def remove_data(object, label):
 def wallet(id):
     return to_json(Wallet.query.get_or_404(id))
 
+
 @app.route("/add_wallet", methods=['POST'])
 def add_wallet():
     data = request.json
-    new_user = Wallet(name=data["name"], description=data["description"])
-    return add_data(new_user, 'Wallet')
+    new_wallet = Wallet(name=data["name"], description=data["description"])
+    
+    db.session.add(new_wallet)
+    db.session.commit()
+
+    all_users = User.query.all()
+    for user in all_users:
+        user.wallets.append(new_wallet)
+
+    db.session.commit()
+    
+    return jsonify({"message": "Wallet added and associated with all users"}), 200
 
 # ----- END POINTS USERS -----
 @app.route("/user/<int:id>", methods=['GET'])
@@ -177,7 +188,25 @@ def edit_money():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+@app.route("/chart_data", methods=['POST'])
+@login_required
+def chart_data():
+    data = request.get_json()
+    client_time_zone = data.get('timeZone', 'SYSTEM')
+    client_tz = pytz.timezone(client_time_zone)
 
+    transfers = MoneyTransfer.query.filter(MoneyTransfer.wallet_id == current_user.last_visited_wallet_id).all()
+    
+    daily_totals = {}
+    for transfer in transfers:
+        local_date = transfer.created_at.replace(tzinfo=pytz.utc).astimezone(client_tz).date()
+        if local_date not in daily_totals:
+            daily_totals[local_date] = 0
+        daily_totals[local_date] += transfer.amount
+
+    days = [{'Date': date.isoformat(), 'Close': total} for date, total in sorted(daily_totals.items())]
+    
+    return jsonify(days)
 
 @app.route("/add_money", methods=['POST'])
 @login_required
@@ -356,10 +385,30 @@ def money_transfers_by_month():
     result = {
         'month': month,
         'year': year,
+        'mean': compute_mean(client_time_zone),
         'total_amount': total_amount_for_month,
         'days': days
     }
     return jsonify(result)
+
+def compute_mean(client_time_zone):
+    oldest_date, total_amount = (
+        db.session.query(
+            func.min(MoneyTransfer.created_at),
+            func.sum(MoneyTransfer.amount))
+        .filter(MoneyTransfer.wallet_id == current_user.last_visited_wallet_id)
+        .one()
+    )
+    if oldest_date == None:
+        return 0
+    current_date = datetime.utcnow()
+    day_difference = (current_date - oldest_date).days
+    if day_difference == 0:
+        return 0
+    
+    return total_amount/day_difference
+
+
 # ----- USER INTERFACE -----
 
 with app.app_context():

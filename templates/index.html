@@ -12,6 +12,8 @@
     <script src="{{ url_for('static', filename='js/table.js') }}"></script>
     <script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.8.4/dist/d3.min.js"></script>
+    <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main2.js') }}"></script>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
@@ -39,6 +41,11 @@
                 {% endfor %}
             </select>
         </div>
+        <div id="show">
+            <button onclick="showChart()">
+                <i class="fas fa-chart-bar"></i> Mostrar Gráfico
+            </button>
+        </div>
         {% else %}
         <span>You are not logged in.</span>
         <a href="/google_login">Login</a>
@@ -51,6 +58,11 @@
             <h2 id="monthYear"></h2>
             <button id="nextMonth">Next<i class="fas fa-chevron-right"></i></button>
         </div>
+    </div>
+    <div id="overlay" onclick="closeChart()"></div>
+    <div id="chartModal">
+        <span class="close-btn" onclick="closeChart()">&times;</span>
+        <div id="chart"></div>
     </div>
     <div>
         <table class="calendar-table">
@@ -68,6 +80,9 @@
             <tbody id="calendarBody"></tbody>
         </table>
     </div>
+    <div class="average">
+    </div>
+
     <div class="welcome">Cargando contenido...</div>
     <div id="logger"></div>
     <div class="last10"></div>

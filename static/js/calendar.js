@@ -27,9 +27,9 @@ function generateCalendar(tbody, date) {
             } else {
                 cell.html('<div>' + dateCount + '</div>');
                 cell.attr('id', dateCount);
-                cell.click(function(){
+                cell.click(function () {
                     let cellDate = new Date(date);
-                    if(lastSelectedCellDate){
+                    if (lastSelectedCellDate) {
                         lastSelectedCellDate.removeClass("selected-cell");
                     }
                     lastSelectedDate = cellDate;
@@ -46,8 +46,8 @@ function generateCalendar(tbody, date) {
         }
         $('#calendarBody').append(row);
     }
-    if(lastSelectedDate)
-        $('#'+lastSelectedDate.getDate()).addClass('selected-cell');
+    if (lastSelectedDate)
+        $('#' + lastSelectedDate.getDate()).addClass('selected-cell');
 }
 
 function loadMonthValues(date) {
@@ -67,10 +67,11 @@ function loadMonthValues(date) {
                     let bottomMessageMonth = $('<div></div>');
                     addSignColor(result.total_amount, bottomMessageMonth);
                     monthYear.append(bottomMessageMonth);
-                    let average = $('<div></div>');
-                    addSignColor(result.mean, average);
-                    $(".average").empty().text('Average per day: ').append(average);
+
                 }
+                let average = $('<div></div>');
+                addSignColor(result.mean, average);
+                $(".average").empty().text('Average per day: ').append(average);
                 result.days.forEach(each => {
                     const cell = $("#" + each.day);
                     const bottomMessage = $('<div></div>');

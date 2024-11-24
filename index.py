@@ -188,6 +188,7 @@ def edit_money():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
 @app.route("/chart_data", methods=['POST'])
 @login_required
 def chart_data():
@@ -386,6 +387,7 @@ def money_transfers_by_month():
         'month': month,
         'year': year,
         'mean': compute_mean(client_time_zone),
+        'mean_month': compute_month_mean(client_date, client_time_zone),
         'total_amount': total_amount_for_month,
         'days': days
     }
@@ -408,7 +410,27 @@ def compute_mean(client_time_zone):
     
     return total_amount/day_difference
 
+def compute_month_mean(client_date, client_time_zone):
+    client_tz = pytz.timezone(client_time_zone)
+    client_date_utc = client_date.astimezone(pytz.utc)
+    current_month = client_date_utc.month
+    current_year = client_date_utc.year
 
+    total_amount = (
+        db.session.query(
+            func.sum(MoneyTransfer.amount))
+            .filter(MoneyTransfer.wallet_id == current_user.last_visited_wallet_id)
+            .filter(func.month(MoneyTransfer.created_at) == current_month)
+            .filter(func.year(MoneyTransfer.created_at) == current_year)
+            .scalar()
+    )
+    
+    if total_amount is None:
+        return 0
+    days_in_month = monthrange(current_year, current_month)[1]
+    if days_in_month == 0:
+        return total_amount
+    return total_amount / days_in_month
 # ----- USER INTERFACE -----
 
 with app.app_context():

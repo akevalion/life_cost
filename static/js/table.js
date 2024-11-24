@@ -1,4 +1,4 @@
-function openInfo(transfer, tbody){
+function openInfo(transfer, tbody, row){
     $("#info-description").text(transfer.description);
     addSignColor(transfer.amount, $("#info-amount"));
     $('#info-tags').empty();
@@ -6,7 +6,56 @@ function openInfo(transfer, tbody){
     $('#info-createdBy').text(transfer.created_by);
     $('#info-createdAt').text(formatTimestamp(transfer.created_at));
     $('#info-modifiedAt').text(formatTimestamp(transfer.modifed_at));
+
+    const editButton = $('<button>')
+        .addClass('btn btn-edit')
+        .html('<i class="fas fa-edit"></i> Editar')
+        .on('click', function() {
+            $("#info").fadeOut();
+            editAction(transfer, tbody, row); 
+        });
+
+    const deleteButton = $('<button>')
+        .addClass('btn btn-delete')
+        .html('<i class="fas fa-trash-alt"></i> Eliminar')
+        .on('click', function() {
+            $("#info").fadeOut();
+            deleteAction(transfer, tbody, row);
+        });
+    $('#info-actions').empty().append(editButton, deleteButton);
     $("#info").fadeIn();
+}
+
+function editAction(transfer, tbody, row){
+    if (!isAuthenticated) {
+        alert("Login first!");
+        return;
+    }
+    let editableRow = addEditableRow(tbody, transfer);
+    row.after(editableRow);
+    row.remove();
+}
+
+function deleteAction(transfer, tbody, row){
+    if (!isAuthenticated) {
+        alert("Login first!");
+        return;
+    }
+    $.ajax({
+        url: `/remove_money/${transfer.id}`,
+        type: 'DELETE',
+        success: function (response) {
+            if (lastSelectedDate)
+                loadMoneyTransferFrom(tbody, lastSelectedDate);
+            else
+                load10Values(tbody);
+            generateCalendar(tbody, currentDate);
+            row.remove();
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            console.error('Error en la eliminación:', textStatus, errorThrown);
+        }
+    });
 }
 
 function loadValues(response, tbody) {
@@ -19,7 +68,7 @@ function loadValues(response, tbody) {
         let descriptionCell = $('<td></td>');
         descriptionCell.text(transfer.description);
         descriptionCell.click(function () {
-            openInfo(transfer, tbody);
+            openInfo(transfer, tbody, row);
         });
         row.append(descriptionCell);
         let amountCell = $('<td></td>');
@@ -33,36 +82,11 @@ function loadValues(response, tbody) {
         let deleteBtn = $('<i class="fas fa-trash icon-button" title="Borrar"></i>');
 
         editBtn.click(function () {
-            if (!isAuthenticated) {
-                alert("Login first!");
-                return;
-            }
-            let row = $(this).closest('tr');
-            let editableRow = addEditableRow(tbody, transfer);
-            row.after(editableRow);
-            row.remove();
+            editAction(transfer, tbody, row);
         });
 
         deleteBtn.click(function () {
-            if (!isAuthenticated) {
-                alert("Login first!");
-                return;
-            }
-            $.ajax({
-                url: `/remove_money/${transfer.id}`,
-                type: 'DELETE',
-                success: function (response) {
-                    if (lastSelectedDate)
-                        loadMoneyTransferFrom(tbody, lastSelectedDate);
-                    else
-                        load10Values(tbody);
-                    generateCalendar(tbody, currentDate);
-                    row.remove();
-                },
-                error: function (jqXHR, textStatus, errorThrown) {
-                    console.error('Error en la eliminación:', textStatus, errorThrown);
-                }
-            });
+            deleteAction(transfer, tbody, row);
         });
 
         actionsCell.append(editBtn).append(deleteBtn);

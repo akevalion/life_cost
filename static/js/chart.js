@@ -112,7 +112,15 @@ function buildChart(chartData) {
         .attr("fill", "black");
     const bisect = d3.bisector((d) => d.Date).center;
 
-    // Eventos de interacción
+    svg.on("click", (event) => {
+        const [mouseX] = d3.pointer(event);
+        const i = bisect(chartData, x.invert(mouseX));
+        const d = chartData[i];
+        if (!d) return;
+        closeChart();
+        loadMoneyTransferFrom($("tbody").eq(1), d.Date);
+    });
+    
     svg.on("pointermove", (event) => {
         const [mouseX] = d3.pointer(event);
         const i = bisect(chartData, x.invert(mouseX));

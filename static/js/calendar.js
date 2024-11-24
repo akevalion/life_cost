@@ -69,9 +69,18 @@ function loadMonthValues(date) {
                     monthYear.append(bottomMessageMonth);
 
                 }
-                let average = $('<div></div>');
-                addSignColor(result.mean, average);
-                $(".average").empty().text('Average per day: ').append(average);
+                let averagePerDay = $('<span></span>');
+                let averageThisMonth = $('<span></span>');
+                addSignColor(result.mean, averagePerDay);
+                addSignColor(result.mean_month, averageThisMonth);
+
+                // Configura la estructura en una sola línea
+                $(".average").empty()
+                    .append('<span>Average per day: </span>')
+                    .append(averagePerDay)
+                    .append('<span>|</span>') // Separador opcional
+                    .append('<span>Average this month: </span>')
+                    .append(averageThisMonth);
                 result.days.forEach(each => {
                     const cell = $("#" + each.day);
                     const bottomMessage = $('<div></div>');

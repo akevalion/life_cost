@@ -222,21 +222,10 @@ tr:hover .icon-button {
     text-align: center;
     color: white;
     margin-bottom: 15px;
-}
-
-@media (max-width: 600px) {
-    table {
-        width: 95%;
-    }
-
-    .actions {
-        width: 8%;
-        padding: 1px;
-    }
-
-    .icon-button {
-        margin: 0 1px;
-    }
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    justify-content: center;
 }
 
 #chartModal {
@@ -267,4 +256,20 @@ tr:hover .icon-button {
     float: right;
     cursor: pointer;
     font-size: 20px;
+}
+
+@media (max-width: 600px) {
+    table {
+        width: 95%;
+    }
+
+    .actions {
+        width: 8%;
+        padding: 1px;
+        display: contents;
+    }
+
+    .icon-button {
+        margin: 0 1px;
+    }
 }

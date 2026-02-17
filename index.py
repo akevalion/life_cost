@@ -209,6 +209,25 @@ def chart_data():
     
     return jsonify(days)
 
+@app.route("/pi_data", methods=['POST'])
+@login_required
+def pi_data():
+    data = request.get_json()
+    client_time_zone = data.get('timeZone', 'SYSTEM')
+    client_tz = pytz.timezone(client_time_zone)
+
+    transfers = MoneyTransfer.query.filter(MoneyTransfer.wallet_id == current_user.last_visited_wallet_id).all()
+    
+    income = outcome = 0
+    for transfer in transfers:
+        local_date = transfer.created_at.replace(tzinfo=pytz.utc).astimezone(client_tz).date()
+        amount = transfer.amount
+        if amount > 0:
+            outcome += amount
+        else:
+            income += amount
+    return jsonify({'income': income, 'outcome': outcome})
+
 @app.route("/add_money", methods=['POST'])
 @login_required
 def add_money():
